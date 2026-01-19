@@ -28,9 +28,40 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false, // Allow API calls
 }));
 
-// CORS configuration
+// CORS configuration - supports multiple origins for dev and production
+const getAllowedOrigins = (): string[] => {
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (!frontendUrl) {
+    return ['http://localhost:3000']; // Default for local development
+  }
+  
+  // Support comma-separated list of URLs (e.g., "http://localhost:3000,https://your-app.vercel.app")
+  const origins = frontendUrl.split(',').map(url => url.trim());
+  return origins;
+};
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    const allowedOrigins = getAllowedOrigins();
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In production, log but allow if it's a valid domain pattern
+      // This helps with Vercel preview deployments
+      if (process.env.NODE_ENV === 'production' && origin) {
+        const isVercelPreview = origin.includes('.vercel.app') || origin.includes('.vercel.sh');
+        if (isVercelPreview) {
+          return callback(null, true);
+        }
+      }
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],

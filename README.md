@@ -78,6 +78,8 @@ npm run db:migrate
 
 ### 3. Environment Configuration
 
+#### Backend Environment Variables
+
 Copy `backend/.env.example` to `backend/.env` and fill in your credentials:
 
 ```bash
@@ -85,7 +87,7 @@ cd backend
 cp .env.example .env
 ```
 
-Required environment variables:
+Required backend environment variables:
 
 ```env
 # Database
@@ -114,6 +116,24 @@ IMAP_PASSWORD=your_app_password_here
 # Frontend URL (for CORS)
 FRONTEND_URL=http://localhost:3000
 ```
+
+#### Frontend Environment Variables
+
+Copy `frontend/.env.example` to `frontend/.env.local` and fill in your backend URL:
+
+```bash
+cd frontend
+cp .env.example .env.local
+```
+
+Required frontend environment variables:
+
+```env
+# Backend API URL
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+**Note**: For production, set `NEXT_PUBLIC_API_URL` to your deployed backend URL (e.g., `https://your-backend.railway.app`).
 
 ### 4. Gmail Setup (Recommended)
 
