@@ -59,9 +59,9 @@ function getTransporter(): Transporter {
 }
 
 /**
- * Send RFP email to vendor
+ * Send RFP email to vendor with retry logic
  */
-export async function sendRFPEmail(vendor: Vendor, rfp: RFP): Promise<{ success: boolean; messageId?: string; subject?: string; body?: string }> {
+export async function sendRFPEmail(vendor: Vendor, rfp: RFP, retries: number = 2): Promise<{ success: boolean; messageId?: string; subject?: string; body?: string }> {
   const transporter = getTransporter();
   
   // Use description as title if title is a placeholder
@@ -114,7 +114,35 @@ Procurement Team
       throw new Error('SMTP_FROM or SMTP_USER must be configured');
     }
 
-    console.log(`Attempting to send RFP email to ${vendor.email} (${vendor.name})`);
+    // Log SMTP configuration (without sensitive data)
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT || '587';
+    console.log(`[Email Service] Attempting to send RFP email to ${vendor.email} (${vendor.name})`);
+    console.log(`[Email Service] SMTP Config: ${smtpHost}:${smtpPort}, From: ${fromEmail}`);
+    console.log(`[Email Service] Environment: ${process.env.NODE_ENV || 'unknown'}`);
+    
+    // Verify connection first (helps with debugging) - only on first attempt
+    if (retries === 2) {
+      try {
+        console.log(`[Email Service] Verifying SMTP connection...`);
+        await transporter.verify();
+        console.log(`[Email Service] SMTP connection verified successfully`);
+      } catch (verifyError: any) {
+        const verifyMsg = verifyError instanceof Error ? verifyError.message : 'Unknown verification error';
+        console.error(`[Email Service] SMTP verification failed:`, verifyMsg);
+        console.error(`[Email Service] Verification error details:`, {
+          code: verifyError?.code,
+          command: verifyError?.command,
+          response: verifyError?.response,
+          responseCode: verifyError?.responseCode,
+          errno: verifyError?.errno,
+          syscall: verifyError?.syscall,
+          address: verifyError?.address,
+          port: verifyError?.port,
+        });
+        throw new Error(`SMTP connection verification failed: ${verifyMsg}`);
+      }
+    }
     
     const info = await transporter.sendMail({
       from: fromEmail,
@@ -124,7 +152,7 @@ Procurement Team
       html: emailBody.replace(/\n/g, '<br>'),
     });
 
-    console.log(`Email sent successfully to ${vendor.email}. Message ID: ${info.messageId}`);
+    console.log(`[Email Service] Email sent successfully to ${vendor.email}. Message ID: ${info.messageId}`);
     
     const emailSubject = `RFP: ${displayTitle}`;
     
@@ -134,11 +162,53 @@ Procurement Team
       subject: emailSubject,
       body: emailBody,
     };
-  } catch (error) {
+  } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`Error sending email to ${vendor.email} (${vendor.name}):`, errorMessage);
-    console.error('Full error:', error);
-    throw new Error(`Failed to send email to ${vendor.name} (${vendor.email}): ${errorMessage}`);
+    const errorCode = error?.code || 'NO_CODE';
+    const errorCommand = error?.command || 'NO_COMMAND';
+    const errorResponse = error?.response || 'NO_RESPONSE';
+    
+    console.error(`[Email Service] Error sending email to ${vendor.email} (${vendor.name}):`, errorMessage);
+    console.error(`[Email Service] Error details:`, {
+      code: errorCode,
+      command: errorCommand,
+      response: errorResponse,
+      responseCode: error?.responseCode,
+      errno: error?.errno,
+      syscall: error?.syscall,
+      address: error?.address,
+      port: error?.port,
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT || '587',
+      environment: process.env.NODE_ENV,
+    });
+    console.error(`[Email Service] Full error object:`, error);
+    
+    // Retry logic for transient errors
+    const isRetryableError = errorCode === 'ETIMEDOUT' || 
+                             errorCode === 'ECONNRESET' || 
+                             errorCode === 'ECONNREFUSED' ||
+                             errorMessage.includes('timeout') ||
+                             errorCode === 'EAI_AGAIN';
+    
+    if (isRetryableError && retries > 0) {
+      const delay = (3 - retries) * 2000; // 2s, 4s delays
+      console.log(`[Email Service] Retryable error detected. Retrying in ${delay}ms... (${retries} attempts remaining)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return sendRFPEmail(vendor, rfp, retries - 1);
+    }
+    
+    // Provide more specific error messages
+    let userFriendlyError = errorMessage;
+    if (errorCode === 'ETIMEDOUT' || errorCode === 'ECONNRESET' || errorMessage.includes('timeout')) {
+      userFriendlyError = `Connection timeout to ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || '587'}. This may be due to network restrictions or firewall blocking outbound SMTP connections.`;
+    } else if (errorCode === 'ECONNREFUSED') {
+      userFriendlyError = `Connection refused to ${process.env.SMTP_HOST}:${process.env.SMTP_PORT || '587'}. Check if the SMTP server is accessible from this network.`;
+    } else if (errorCode === 'ENOTFOUND' || errorCode === 'EAI_AGAIN') {
+      userFriendlyError = `Cannot resolve SMTP host ${process.env.SMTP_HOST}. Check DNS configuration.`;
+    }
+    
+    throw new Error(`Failed to send email to ${vendor.name} (${vendor.email}): ${userFriendlyError}`);
   }
 }
 

@@ -43,3 +43,10 @@ Thumbs.db
 
 # Prisma generated files
 generated/
+
+# One-time migration scripts (already applied)
+backend/scripts/apply-migration-*.ts
+
+# Debug scripts (development only)
+backend/scripts/debug*.ts
+backend/scripts/README_DEBUG.md

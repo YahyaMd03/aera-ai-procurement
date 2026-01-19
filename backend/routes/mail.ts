@@ -4,6 +4,7 @@ import { db } from '../src/db/index.js';
 import { sentEmailsTable } from '../src/db/schema.js';
 import { eq } from 'drizzle-orm';
 import { pollInbox } from '../services/emailPoller.js';
+import { verifyEmailConfig } from '../services/emailService.js';
 
 const router = express.Router();
 
@@ -231,6 +232,70 @@ router.post('/poll', async (req: Request, res: Response, next: NextFunction) => 
     res.json({ success: true, message: 'Email poll completed' });
   } catch (error) {
     next(error);
+  }
+});
+
+/**
+ * Test SMTP connection and configuration
+ * GET /api/mail/test-smtp
+ */
+router.get('/test-smtp', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log('[SMTP Test] Testing SMTP connection...');
+    
+    // Check environment variables
+    const config = {
+      SMTP_HOST: process.env.SMTP_HOST || 'NOT SET',
+      SMTP_PORT: process.env.SMTP_PORT || 'NOT SET',
+      SMTP_USER: process.env.SMTP_USER ? `${process.env.SMTP_USER.substring(0, 3)}***` : 'NOT SET',
+      SMTP_FROM: process.env.SMTP_FROM || 'NOT SET',
+      SMTP_PASSWORD_SET: !!process.env.SMTP_PASSWORD,
+      NODE_ENV: process.env.NODE_ENV || 'NOT SET',
+    };
+    
+    console.log('[SMTP Test] Configuration:', config);
+    
+    // Verify connection
+    const verification = await verifyEmailConfig();
+    
+    if (verification.success) {
+      res.json({
+        success: true,
+        message: 'SMTP connection verified successfully',
+        config: config,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: verification.error,
+        config: config,
+      });
+    }
+  } catch (error: any) {
+    const errorDetails = {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      code: error?.code,
+      command: error?.command,
+      response: error?.response,
+      responseCode: error?.responseCode,
+      errno: error?.errno,
+      syscall: error?.syscall,
+      address: error?.address,
+      port: error?.port,
+    };
+    
+    console.error('[SMTP Test] Error:', errorDetails);
+    
+    res.status(500).json({
+      success: false,
+      error: errorDetails.message,
+      details: errorDetails,
+      config: {
+        SMTP_HOST: process.env.SMTP_HOST || 'NOT SET',
+        SMTP_PORT: process.env.SMTP_PORT || 'NOT SET',
+        NODE_ENV: process.env.NODE_ENV || 'NOT SET',
+      },
+    });
   }
 });
 
