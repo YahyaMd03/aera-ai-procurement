@@ -44,6 +44,15 @@ function getTransporter(): Transporter {
         user: smtpUser,
         pass: smtpPassword,
       },
+      connectionTimeout: 30000, // 30 second connection timeout
+      greetingTimeout: 30000, // 30 second greeting timeout
+      socketTimeout: 30000, // 30 second socket timeout
+      // TLS options for better compatibility
+      tls: {
+        // Allow self-signed certificates if SMTP_ALLOW_INSECURE is set to 'true'
+        // Also allow in development mode for easier local testing
+        rejectUnauthorized: process.env.SMTP_ALLOW_INSECURE !== 'true' && process.env.NODE_ENV === 'production',
+      },
     });
   }
   return transporter;

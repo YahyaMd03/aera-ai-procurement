@@ -143,12 +143,20 @@ router.post('/send-rfp', async (req: Request, res: Response, next: NextFunction)
     // If conversationId provided, update conversation state
     if (conversationId) {
       const { updateAgentState, updateConversationStatus, addMessage } = await import('../services/conversationService.js');
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.filter(r => !r.success).length;
+      
       await updateAgentState(conversationId, {
         workflowStep: 'sent',
-        lastAction: `RFP sent to ${results.filter(r => r.success).length} vendor(s)`,
+        lastAction: `RFP sent to ${successCount} vendor(s)${failureCount > 0 ? ` (${failureCount} failed)` : ''}`,
       });
       await updateConversationStatus(conversationId, 'sent');
-      await addMessage(conversationId, 'system', `RFP successfully sent to ${results.filter(r => r.success).length} vendor(s).`);
+      
+      if (successCount > 0) {
+        await addMessage(conversationId, 'system', `RFP successfully sent to ${successCount} vendor(s)${failureCount > 0 ? `. ${failureCount} vendor(s) failed to receive the email.` : ''}`);
+      } else {
+        await addMessage(conversationId, 'system', `Failed to send RFP to all ${failureCount} vendor(s). Please check your email configuration and try again.`);
+      }
     }
 
     res.json({ results });

@@ -30,8 +30,11 @@ function getImapConnection(): Imap {
       tlsOptions: { 
         // Allow self-signed certificates if IMAP_ALLOW_INSECURE is set to 'true'
         // This is needed for some email providers or when behind proxies
-        rejectUnauthorized: process.env.IMAP_ALLOW_INSECURE !== 'true',
+        // Also allow in development mode for easier local testing
+        rejectUnauthorized: process.env.IMAP_ALLOW_INSECURE !== 'true' && process.env.NODE_ENV === 'production',
       },
+      connTimeout: 30000, // 30 second connection timeout
+      authTimeout: 30000, // 30 second authentication timeout
     });
   }
   return imap;
