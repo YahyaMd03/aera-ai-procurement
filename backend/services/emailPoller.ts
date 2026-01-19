@@ -28,8 +28,9 @@ function getImapConnection(): Imap {
       port: parseInt(process.env.IMAP_PORT || '993'),
       tls: true,
       tlsOptions: { 
-        rejectUnauthorized: process.env.NODE_ENV !== 'development',
-        // Allow self-signed certs only in development
+        // Allow self-signed certificates if IMAP_ALLOW_INSECURE is set to 'true'
+        // This is needed for some email providers or when behind proxies
+        rejectUnauthorized: process.env.IMAP_ALLOW_INSECURE !== 'true',
       },
     });
   }
