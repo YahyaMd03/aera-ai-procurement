@@ -128,12 +128,6 @@ Return ONLY valid JSON, no markdown, no code blocks.`;
     }
     const parsed = JSON.parse(content);
     
-    // Log LLM response
-    console.log('=== LLM Response (createRFPFromNaturalLanguage) ===');
-    console.log('Raw content:', content);
-    console.log('Parsed response:', JSON.stringify(parsed, null, 2));
-    console.log('====================================================');
-    
     // Validate with Zod
     const validated = RFPSchema.parse(parsed);
     
@@ -204,12 +198,6 @@ Return ONLY valid JSON, no markdown, no code blocks.`;
     }
     const parsed = JSON.parse(content);
     
-    // Log LLM response
-    console.log('=== LLM Response (parseVendorResponse) ===');
-    console.log('Raw content:', content);
-    console.log('Parsed response:', JSON.stringify(parsed, null, 2));
-    console.log('===========================================');
-    
     // Validate with Zod
     const validated = ProposalSchema.parse(parsed);
     
@@ -272,11 +260,6 @@ Keep responses concise but informative. If the user is asking about something sp
       throw new Error('No content in OpenAI response');
     }
 
-    // Log LLM response
-    console.log('=== LLM Response (chatWithAI) ===');
-    console.log('Response:', content);
-    console.log('==================================');
-
     return content;
   } catch (error) {
     console.error('Error in chat:', error);
@@ -318,7 +301,6 @@ function normalizeStateUpdate(stateUpdate: any): any {
         }
       } else if (typeof normalized.rfpDraft.requirements !== 'object' || normalized.rfpDraft.requirements === null) {
         // If it's not a string and not an object, remove it
-        console.warn('Requirements is not an object or string, removing it:', typeof normalized.rfpDraft.requirements, normalized.rfpDraft.requirements);
         delete normalized.rfpDraft.requirements;
       }
     }
@@ -337,8 +319,8 @@ const AgentStateUpdateSchema = z.object({
   rfpDraft: z.object({
     title: z.string().optional(),
     description: z.string().optional(),
-    budget: z.number().optional(),
-    deadline: z.string().optional(),
+    budget: z.number().nullable().optional(),
+    deadline: z.string().nullable().optional(), // Allow null for deadline
     requirements: z.union([
       z.object({
         items: z.array(z.object({
@@ -505,12 +487,6 @@ If no state update is needed, set stateUpdate to null.`;
 
     const parsed = JSON.parse(content);
     
-    // Log LLM response
-    console.log('=== LLM Response (chatWithAgentState) ===');
-    console.log('Raw content:', content);
-    console.log('Parsed response:', JSON.stringify(parsed, null, 2));
-    console.log('=========================================');
-    
     // Validate response structure
     if (!parsed.response) {
       throw new Error('LLM response missing "response" field');
@@ -531,10 +507,6 @@ If no state update is needed, set stateUpdate to null.`;
       if (validationResult.success) {
         stateUpdate = validationResult.data;
       } else {
-        // Log the validation error for debugging
-        console.error('State update validation failed:', validationResult.error.errors);
-        console.error('Normalized state update:', JSON.stringify(normalizedStateUpdate, null, 2));
-        
         // If validation fails, try to salvage what we can by removing invalid fields
         // This prevents the entire request from failing
         const salvaged = { ...normalizedStateUpdate };
@@ -549,7 +521,6 @@ If no state update is needed, set stateUpdate to null.`;
         } else {
           // If still failing, just use the normalized data without strict validation
           // This is better than failing the entire request
-          console.warn('Using unvalidated state update due to validation errors');
           stateUpdate = salvaged;
         }
       }
@@ -608,12 +579,6 @@ Return ONLY the title text, nothing else. Make it specific and meaningful. Keep 
     });
 
     const title = response.choices[0].message.content?.trim() || 'New Conversation';
-    
-    // Log LLM response
-    console.log('=== LLM Response (generateConversationTitle) ===');
-    console.log('Raw response:', response.choices[0].message.content);
-    console.log('Generated title:', title);
-    console.log('================================================');
     
     // Remove quotes if present
     return title.replace(/^["']|["']$/g, '');
@@ -734,12 +699,6 @@ Return ONLY valid JSON, no markdown, no code blocks.`;
       throw new Error('No content in OpenAI response');
     }
     const parsed = JSON.parse(content);
-    
-    // Log LLM response
-    console.log('=== LLM Response (compareProposals) ===');
-    console.log('Raw content:', content);
-    console.log('Parsed response:', JSON.stringify(parsed, null, 2));
-    console.log('========================================');
     
     // Combine AI analysis with detailed evaluations
     return {

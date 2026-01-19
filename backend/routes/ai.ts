@@ -215,21 +215,14 @@ router.get('/compare/:rfpId', async (req: Request, res: Response, next: NextFunc
       const cacheIsNewer = !lastProposalUpdate || cacheUpdate >= lastProposalUpdate;
       
       if (proposalCountMatches && cacheIsNewer) {
-        console.log(`[Compare] Using cached comparison for RFP ${rfpId} (${currentProposalCount} proposals)`);
         comparison = rfp.comparisonCache;
       } else {
-        if (!proposalCountMatches) {
-          console.log(`[Compare] Cache invalidated - proposal count changed (${cachedProposalCount} -> ${currentProposalCount})`);
-        } else {
-          console.log(`[Compare] Cache invalidated - proposals updated after cache`);
-        }
         comparison = null; // Will regenerate below
       }
     }
 
     // Generate new comparison if cache miss or refresh requested
     if (!comparison || refresh) {
-      console.log(`[Compare] Generating new comparison for RFP ${rfpId}${refresh ? ' (manual refresh)' : ''}`);
       comparison = await compareProposals(rfp, rfp.proposals);
       
       // Save to cache

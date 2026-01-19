@@ -227,7 +227,6 @@ router.get('/inbox', async (req: Request, res: Response, next: NextFunction) => 
  */
 router.post('/poll', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('[Email Poller] Manual poll triggered via API');
     await pollInbox();
     res.json({ success: true, message: 'Email poll completed' });
   } catch (error) {
@@ -241,7 +240,6 @@ router.post('/poll', async (req: Request, res: Response, next: NextFunction) => 
  */
 router.get('/test-smtp', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log('[SMTP Test] Testing SMTP connection...');
     
     // Check environment variables
     const config = {
@@ -253,7 +251,6 @@ router.get('/test-smtp', async (req: Request, res: Response, next: NextFunction)
       NODE_ENV: process.env.NODE_ENV || 'NOT SET',
     };
     
-    console.log('[SMTP Test] Configuration:', config);
     
     // Verify connection
     const verification = await verifyEmailConfig();

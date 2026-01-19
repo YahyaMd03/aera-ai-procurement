@@ -58,13 +58,10 @@ async function processEmailMessage(msg: any): Promise<void> {
           const fromEmail = parsed.from?.value?.[0]?.address;
           const emailBody = parsed.text || parsed.html || '';
 
-          console.log(`[Email Poller] Processing email: Subject="${subject}", From="${fromEmail}"`);
-
           // Look for RFP in subject or check if sender is a known vendor
           const hasKeyword = subject.toLowerCase().includes('rfp') || subject.toLowerCase().includes('proposal') || subject.toLowerCase().includes('quote');
           
           if (!hasKeyword) {
-            console.log(`[Email Poller] Skipping email: Subject doesn't contain 'rfp', 'proposal', or 'quote'`);
             resolve();
             return;
           }
@@ -75,7 +72,6 @@ async function processEmailMessage(msg: any): Promise<void> {
           });
 
           if (!vendor) {
-            console.log(`[Email Poller] Skipping email: Sender ${fromEmail} is not a known vendor`);
             resolve();
             return;
           }
@@ -94,7 +90,6 @@ async function processEmailMessage(msg: any): Promise<void> {
           const rfp = rfps[0];
 
           if (!rfp) {
-            console.log(`[Email Poller] Skipping email: No matching RFP found for subject "${subject}"`);
             resolve();
             return;
           }
@@ -137,7 +132,6 @@ async function processEmailMessage(msg: any): Promise<void> {
               const agentState = conv.agentState as any;
               if (agentState?.rfpId === rfp.id) {
                 conversationId = conv.id;
-                console.log(`[Email Poller] Found conversation ${conversationId} for RFP ${rfp.id} via agentState`);
                 break;
               }
             }
@@ -209,14 +203,12 @@ async function processEmailMessage(msg: any): Promise<void> {
             });
           }
 
-          console.log(`[Email Poller] Processed proposal from ${vendor.name} for RFP ${rfp.title} (Score: ${evaluation.overallScore}/100)`);
 
           // Invalidate comparison cache when proposal is created/updated
           if (isNewProposal || existingProposal) {
             await db.update(rfpsTable)
               .set({ comparisonCache: null, comparisonCacheUpdatedAt: null })
               .where(eq(rfpsTable.id, rfp.id));
-            console.log(`[Email Poller] Invalidated comparison cache for RFP ${rfp.id}`);
           }
 
           // Update conversation if found (either from sentEmail or agentState)
@@ -236,7 +228,6 @@ async function processEmailMessage(msg: any): Promise<void> {
                 `You can view the full proposal details and comparison in the RFP view.`;
 
               await addMessage(conversationId, 'assistant', message);
-              console.log(`[Email Poller] Added proposal notification to conversation ${conversationId}`);
             } catch (error) {
               console.error(`[Email Poller] Error updating conversation:`, error);
               // Don't fail the proposal processing if conversation update fails
@@ -288,13 +279,11 @@ export async function pollInbox(): Promise<void> {
           }
 
           if (!results || results.length === 0) {
-            console.log('[Email Poller] No unread emails found in the last 24 hours');
             imap.end();
             isPolling = false;
             return resolve();
           }
 
-          console.log(`[Email Poller] Found ${results.length} unread email(s), processing...`);
 
           // Process each email
           const f = imap.fetch(results, { bodies: '' });
@@ -346,5 +335,4 @@ export function startEmailPoller(): void {
     });
   });
 
-  console.log('Email poller scheduled to run every 15 seconds');
 }

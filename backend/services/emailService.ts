@@ -114,19 +114,10 @@ Procurement Team
       throw new Error('SMTP_FROM or SMTP_USER must be configured');
     }
 
-    // Log SMTP configuration (without sensitive data)
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT || '587';
-    console.log(`[Email Service] Attempting to send RFP email to ${vendor.email} (${vendor.name})`);
-    console.log(`[Email Service] SMTP Config: ${smtpHost}:${smtpPort}, From: ${fromEmail}`);
-    console.log(`[Email Service] Environment: ${process.env.NODE_ENV || 'unknown'}`);
-    
     // Verify connection first (helps with debugging) - only on first attempt
     if (retries === 2) {
       try {
-        console.log(`[Email Service] Verifying SMTP connection...`);
         await transporter.verify();
-        console.log(`[Email Service] SMTP connection verified successfully`);
       } catch (verifyError: any) {
         const verifyMsg = verifyError instanceof Error ? verifyError.message : 'Unknown verification error';
         console.error(`[Email Service] SMTP verification failed:`, verifyMsg);
@@ -152,8 +143,6 @@ Procurement Team
       html: emailBody.replace(/\n/g, '<br>'),
     });
 
-    console.log(`[Email Service] Email sent successfully to ${vendor.email}. Message ID: ${info.messageId}`);
-    
     const emailSubject = `RFP: ${displayTitle}`;
     
     return {
@@ -177,7 +166,7 @@ Procurement Team
       errno: error?.errno,
       syscall: error?.syscall,
       address: error?.address,
-      port: error?.port,
+      errorPort: error?.port,
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT || '587',
       environment: process.env.NODE_ENV,
@@ -193,7 +182,6 @@ Procurement Team
     
     if (isRetryableError && retries > 0) {
       const delay = (3 - retries) * 2000; // 2s, 4s delays
-      console.log(`[Email Service] Retryable error detected. Retrying in ${delay}ms... (${retries} attempts remaining)`);
       await new Promise(resolve => setTimeout(resolve, delay));
       return sendRFPEmail(vendor, rfp, retries - 1);
     }
